@@ -1,0 +1,82 @@
+### LIBRARY CALL ###
+library("rpart")
+library("rpart.plot")	
+
+#######################################################################################################
+
+### READING DATA. YOU HAVE TO CHANGE THIS TO WHERE YOUR DATA IS ###
+titanic <- read.csv("E:/TA MAterial/Lab 1/titanic.csv")
+
+#call the visualizatoin libraries
+library(ggplot2)
+library(GGally)
+library(corrplot)
+#this library is for CrossTable Function
+library(gmodels)
+
+#Histogram of data
+hist(titanic$Survived)
+hist(titanic$Pclass)
+
+qplot(factor(Survived), Age, data = titanic, geom = "boxplot")
+qplot(factor(Survived), data=titanic, geom="bar", fill=factor(Sex))
+CrossTable(titanic$Survive, titanic$Pclass)
+
+#subset data - columns
+cordata=titanic[,c("Survived","Pclass","Sex","Age","SibSp","Parch")]
+#see the structure of the data
+str(cordata)
+
+#changing the data type of Sex to numeric for correlations plot
+cordata$Sex=as.numeric(cordata$Sex)
+cordata=cordata[complete.cases(cordata),]
+dim(cordata)
+dim(titanic)
+#draw correlations plot
+corrplot(cor(cordata))
+
+
+#call the main ML library
+library(caret)
+#subset data by columns 
+titanic=titanic[,c("Survived","Pclass","Sex","Age","SibSp","Parch")]
+
+#for reproducibility and TAs to check your answer. ?set.seed for more details
+set.seed(100)
+
+#change the survived variable to factor since we are after classification. if you 
+#give numeric as the Y-var, the algorithm will try to do regression.
+
+#train the model
+cv <- train(as.factor(Survived)~Pclass+Sex+Age+SibSp+Parch, data=cordata, 
+                method = 'ctree2', 
+                trControl=trainControl(method = 'cv', number=5),
+                tuneGrid=expand.grid(maxdepth=2:10,mincriterion = 0))
+#plots the accuracies
+plot(cv)
+#draw the tree plot
+plot(cv$finalModel)
+
+set.seed(100)
+cvsimple <- train(as.factor(Survived)~Pclass+Sex+Age+SibSp+Parch, data=cordata, 
+            method = 'ctree', 
+            trControl=trainControl(method = 'cv', number=5),
+            tuneGrid=expand.grid(mincriterion=0.95))
+plot(cvsimple$finalModel)
+
+
+importance=varImp(cv)$importance
+featureImportance <- data.frame(Feature=row.names(importance), Importance=importance[,1])
+
+#more advanced and better looking plot function ggplot
+p <-ggplot(featureImportance, aes(x=reorder(Feature, Importance), y=Importance)) +
+    geom_bar(stat="identity", fill="#53cfff") +
+    coord_flip() + 
+    theme_light(base_size=20) +
+    xlab("") +
+    ylab("Importance") + 
+    ggtitle("Feature Importance\n") +
+    theme(plot.title=element_text(size=18))
+p
+
+
